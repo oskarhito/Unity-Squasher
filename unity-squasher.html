@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Unity Squasher 🎮</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%235b3df5'/%3E%3Cstop offset='1' stop-color='%23ff5c8a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='15' fill='url(%23g)'/%3E%3Crect x='7' y='21' width='50' height='26' rx='13' fill='white'/%3E%3Crect x='15' y='32' width='16' height='5' rx='2' fill='%235b3df5'/%3E%3Crect x='20.5' y='26.5' width='5' height='16' rx='2' fill='%235b3df5'/%3E%3Ccircle cx='42' cy='31' r='3.4' fill='%23ff5c8a'/%3E%3Ccircle cx='49' cy='38' r='3.4' fill='%235b3df5'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#f3f1ec;--ink:#1d1b2e;--mut:#6b6880;--card:#fff;--line:#d9d5e6;--acc:#5b3df5;--acc2:#ff5c8a;--ok:#12926a;--err:#d03050;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15131f;--ink:#f0eefc;--mut:#9a96b5;--card:#1f1c2e;--line:#363150;--acc:#8c78ff;--acc2:#ff7aa2;--ok:#3fd6a0;--err:#ff6b87}}
+:root[data-theme="dark"]{--bg:#15131f;--ink:#f0eefc;--mut:#9a96b5;--card:#1f1c2e;--line:#363150;--acc:#8c78ff;--acc2:#ff7aa2;--ok:#3fd6a0;--err:#ff6b87}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Trebuchet MS","Segoe UI",system-ui,sans-serif;min-height:100vh}
+main{max-width:680px;margin:0 auto;padding:32px 18px 60px}
+h1{font:800 clamp(2rem,7vw,3.2rem)/1.05 "Arial Black","Segoe UI",sans-serif;margin:0 0 10px;letter-spacing:-.03em}
+h1 span{display:inline-block;transform:rotate(-4deg);background:var(--acc);color:#fff;padding:0 .2em;border-radius:.2em}
+p.lead{color:var(--mut);margin:0 0 24px;max-width:56ch}
+#drop{border:3px dashed var(--line);border-radius:22px;background:var(--card);padding:34px 20px;text-align:center;transition:.15s}
+#drop.hot{border-color:var(--acc);transform:scale(1.015)}
+#drop b{font-size:1.2rem}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+button,label.btn{font:inherit;font-weight:700;border:0;border-radius:12px;padding:11px 18px;cursor:pointer;background:var(--ink);color:var(--bg)}
+button.go{background:var(--acc2);color:#fff;font-size:1.05rem}
+button:disabled{opacity:.4;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+input[type=file]{display:none}
+.opts{display:grid;grid-template-columns:1fr auto;gap:10px;margin:20px 0}
+.opts input[type=text]{font:inherit;padding:10px 12px;border:2px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);width:100%}
+.opts input[type=color]{width:52px;height:100%;min-height:44px;border:2px solid var(--line);border-radius:10px;background:var(--card);padding:3px}
+#found{margin:18px 0;padding:0;list-style:none;display:grid;gap:6px}
+#found li{background:var(--card);border:2px solid var(--line);border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;gap:10px;font-size:.92rem;word-break:break-all}
+#found li.ok{border-color:var(--ok)} #found li.bad{border-color:var(--err)}
+#found em{font-style:normal;color:var(--mut);white-space:nowrap}
+#log{font-size:.92rem;color:var(--mut);min-height:1.5em;margin-top:14px}
+#log.err{color:var(--err);font-weight:700} #log.ok{color:var(--ok);font-weight:700}
+.bar{height:12px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:12px;display:none}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .2s}
+.favs{margin:0 0 20px}.favs p{margin:0 0 8px;font-weight:700}
+.fgrid{display:flex;flex-wrap:wrap;gap:8px}
+.fgrid button{width:48px;height:48px;padding:0;font-size:1.6rem;line-height:1;background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:12px;display:grid;place-items:center}
+.fgrid button.txt{width:auto;padding:0 12px;font-size:.9rem}
+.fgrid button[aria-pressed=true]{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc)}
+.fgrid img{width:30px;height:30px;border-radius:6px}
+details{margin-top:28px;color:var(--mut);font-size:.9rem} summary{cursor:pointer;font-weight:700;color:var(--ink)}
+</style>
+</head>
+<body>
+<main>
+<h1>Unity <span>Squasher</span> 🗜️</h1>
+<p class="lead">Drop in a Unity WebGL build and get back one single HTML file with everything baked in. No folders, no TemplateData, no images. Runs 100% in your browser, nothing is uploaded anywhere. 🔒</p>
+
+<div id="drop">
+  <div style="font-size:2.4rem">📦</div>
+  <b>Drop your build here</b><br>
+  <span style="color:var(--mut)">the build folder, a .zip, or the loose Build files</span>
+  <div class="btns">
+    <label class="btn" tabindex="0">📁 Pick folder<input type="file" id="fFolder" webkitdirectory multiple></label>
+    <label class="btn" tabindex="0">🗜️ Pick zip / files<input type="file" id="fFiles" multiple></label>
+  </div>
+</div>
+
+<ul id="found"></ul>
+
+<div class="opts">
+  <input type="text" id="title" placeholder="Game title (auto-detected)" aria-label="Game title">
+  <input type="color" id="bg" value="#000000" aria-label="Background colour">
+</div>
+
+<div class="favs">
+  <p>🖼️ Tab icon for your game</p>
+  <div class="fgrid" id="fgrid"></div>
+  <input type="file" id="fUp" accept="image/*">
+</div>
+
+<button class="go" id="go" disabled>⚡ Squash it into one HTML</button>
+<div class="bar" id="bar"><i id="bi"></i></div>
+<div id="log" role="status"></div>
+
+<details>
+<summary>🧠 Good to know</summary>
+<p>Works with Unity 2020+ builds (files named <code>*.loader.js</code>, <code>*.framework.js</code>, <code>*.data</code>, <code>*.wasm</code>). Gzip (<code>.gz</code>) builds are unpacked for you. Brotli (<code>.br</code>) isn't supported by browsers' built-in tools, so rebuild with Compression Format set to Gzip or Disabled.</p>
+<p>Everything is base64-encoded inside the file, so expect it to be about a third bigger than your build. Games using a <code>StreamingAssets</code> folder will need those assets inlined separately, they can't be loaded from a single file.</p>
+<p>Open this page with an internet connection once, since it pulls the zip reader from cdnjs.</p>
+</details>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const files=new Map();
+const KINDS={
+  loader:/\.loader\.js$/i,
+  framework:/\.framework\.js(\.gz|\.br|\.unityweb)?$/i,
+  data:/\.data(\.gz|\.br|\.unityweb)?$/i,
+  wasm:/\.wasm(\.gz|\.br|\.unityweb)?$/i
+};
+const MB=n=>(n/1048576).toFixed(1)+' MB';
+function log(m,c){const l=$('log');l.textContent=m;l.className=c||''}
+
+async function ingest(list){
+  log('Reading files… 👀');
+  for(const f of list){
+    const p=f.webkitRelativePath||f.name;
+    if(/\.zip$/i.test(f.name)&&window.JSZip){
+      try{const z=await JSZip.loadAsync(f);
+        for(const [zp,e] of Object.entries(z.files)) if(!e.dir) files.set(zp,await e.async('blob'));
+      }catch(e){log('Could not open '+f.name+': '+e.message,'err')}
+    }else files.set(p,f);
+  }
+  scan();
+}
+function pick(kind){
+  const hits=[...files.keys()].filter(p=>KINDS[kind].test(p)&&!/StreamingAssets/i.test(p));
+  return hits[0]||null;
+}
+async function scan(){
+  const ul=$('found');ul.innerHTML='';
+  let all=true;
+  for(const k of Object.keys(KINDS)){
+    const p=pick(k);const li=document.createElement('li');
+    if(p){li.className='ok';li.innerHTML='<span>✅ '+esc(p.split('/').pop())+'</span><em>'+MB(files.get(p).size)+'</em>'}
+    else{all=false;li.className='bad';li.innerHTML='<span>❌ missing '+k+' file</span><em></em>'}
+    ul.appendChild(li);
+  }
+  const idx=[...files.keys()].find(p=>/(^|\/)index\.html$/i.test(p));
+  if(idx&&!$('title').value){
+    const t=await files.get(idx).text();
+    const m=t.match(/productName:\s*"([^"]*)"/)||t.match(/<title>([^<]*)<\/title>/i);
+    if(m)$('title').value=m[1].replace(/^Unity WebGL Player \|\s*/,'');
+  }
+  $('go').disabled=!all;
+  log(all?'All four core files found. Ready to squash! 🚀':'Still missing some files, add them and I\'ll re-check. 🔍',all?'ok':'');
+}
+function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+async function raw(blob,name){
+  if(/\.br$/i.test(name))throw new Error(name+' is Brotli-compressed. Rebuild in Unity with Gzip or no compression.');
+  const h=new Uint8Array(await blob.slice(0,2).arrayBuffer());
+  if(h[0]===0x1f&&h[1]===0x8b){
+    if(!('DecompressionStream' in window))throw new Error('This browser can\'t unpack gzip. Try a recent Chrome, Edge, Firefox or Safari.');
+    return await new Response(blob.stream().pipeThrough(new DecompressionStream('gzip'))).blob();
+  }
+  return blob;
+}
+function b64(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.slice(r.result.indexOf(',')+1));r.onerror=()=>rej(r.error);r.readAsDataURL(blob)})}
+function setBar(p){$('bar').style.display='block';$('bi').style.width=p+'%'}
+
+async function build(){
+  $('go').disabled=true;
+  try{
+    const parts={};const kinds=Object.keys(KINDS);
+    for(let i=0;i<kinds.length;i++){
+      const k=kinds[i],p=pick(k);
+      log('Unpacking & encoding '+k+'… 🧙');setBar(i/kinds.length*100);
+      parts[k]=await b64(await raw(files.get(p),p));
+    }
+    setBar(95);log('Assembling the final file… 🧩');
+    const title=$('title').value.trim()||'Unity Game',bg=$('bg').value;
+    const cfg=JSON.stringify({companyName:'Company',productName:title,productVersion:'1.0'}).replace(/</g,'\\u003c');
+    const head='<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>'+esc(title)+'</title>'+(fav?'<link rel="icon" href="'+fav+'">':'')+'<style>html,body{margin:0;height:100%;background:'+bg+';overflow:hidden}#c{width:100%;height:100%;display:block}#l{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:240px;height:10px;background:#444;border-radius:5px;overflow:hidden}#b{height:100%;width:0;background:#fff}</style></head><body><canvas id="c"></canvas><div id="l"><div id="b"></div></div><script>\nvar F={';
+    const run='};\nvar T={loader:"text/javascript",framework:"text/javascript",data:"application/octet-stream",wasm:"application/wasm"};\nfunction d(s,t){var n=atob(s),a=new Uint8Array(n.length);for(var i=0;i<n.length;i++)a[i]=n.charCodeAt(i);return URL.createObjectURL(new Blob([a],{type:t}))}\nvar U={};["loader","framework","data","wasm"].forEach(function(k){U[k]=d(F[k],T[k]);F[k]=null});\nvar s=document.createElement("script");s.src=U.loader;\ns.onload=function(){var c=Object.assign({dataUrl:U.data,frameworkUrl:U.framework,codeUrl:U.wasm,streamingAssetsUrl:"StreamingAssets"},'+cfg+');\ncreateUnityInstance(document.getElementById("c"),c,function(p){document.getElementById("b").style.width=p*100+"%"}).then(function(){document.getElementById("l").remove()}).catch(function(e){alert(e)})};\ndocument.body.appendChild(s);\n<\/script></body></html>';
+    const blobParts=[head];
+    kinds.forEach((k,i)=>blobParts.push((i?',':'')+k+':"',parts[k],'"'));
+    blobParts.push(run);
+    const out=new Blob(blobParts,{type:'text/html'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(out);
+    a.download=(title.replace(/[^\w-]+/g,'_')||'game')+'.html';
+    document.body.appendChild(a);a.click();a.remove();
+    setBar(100);log('Done! 🎉 Your single-file game is '+MB(out.size)+' and has been downloaded.','ok');
+  }catch(e){log('Oops: '+e.message+' 😵','err')}
+  $('go').disabled=false;
+}
+
+/* favicon picker */
+const EMOJI=['🎮','👾','🕹️','🚀','🐸','⚔️','🏎️','👻','🔥','⭐'];
+const emo=e=>'data:image/svg+xml,'+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50' y='50' font-size='80' text-anchor='middle' dominant-baseline='central'>"+e+"</text></svg>");
+let fav=emo(EMOJI[0]),custom='';
+function drawFavs(){
+  const g=$('fgrid');g.innerHTML='';
+  const mk=(content,uri,label,cls)=>{
+    const b=document.createElement('button');b.type='button';if(cls)b.className=cls;
+    b.setAttribute('aria-label',label);b.setAttribute('aria-pressed',String(fav===uri));
+    if(typeof content==='string')b.textContent=content;else b.appendChild(content);
+    b.onclick=()=>{fav=uri;drawFavs()};g.appendChild(b);
+  };
+  EMOJI.forEach(e=>mk(e,emo(e),'Use '+e+' icon'));
+  if(custom){const im=new Image();im.src=custom;im.alt='';mk(im,custom,'Use uploaded icon')}
+  const up=document.createElement('button');up.type='button';up.className='txt';up.textContent='⬆️ Upload';
+  up.onclick=()=>$('fUp').click();g.appendChild(up);
+  mk('🚫 None','','No icon','txt');
+}
+$('fUp').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const u=URL.createObjectURL(f),im=new Image();
+  im.onload=()=>{
+    const c=document.createElement('canvas');c.width=c.height=64;
+    const s=Math.min(im.width,im.height)||64;
+    c.getContext('2d').drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,64,64);
+    custom=fav=c.toDataURL('image/png');URL.revokeObjectURL(u);drawFavs();
+  };
+  im.onerror=()=>log('Could not read that image 😵','err');
+  im.src=u;e.target.value='';
+};
+drawFavs();
+
+/* inputs */
+$('fFolder').onchange=e=>ingest([...e.target.files]);
+$('fFiles').onchange=e=>ingest([...e.target.files]);
+$('go').onclick=build;
+document.querySelectorAll('label.btn').forEach(l=>l.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();l.querySelector('input').click()}});
+
+/* drag & drop (folders supported) */
+const drop=$('drop');
+['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('hot')}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('hot')}));
+drop.addEventListener('drop',async e=>{
+  const out=[];
+  async function walk(en,path){
+    if(en.isFile){const f=await new Promise(r=>en.file(r));Object.defineProperty(f,'webkitRelativePath',{value:path+f.name});out.push(f)}
+    else if(en.isDirectory){
+      const rd=en.createReader();let batch;
+      do{batch=await new Promise(r=>rd.readEntries(r));for(const c of batch)await walk(c,path+en.name+'/')}while(batch.length);
+    }
+  }
+  const items=[...e.dataTransfer.items].map(i=>i.webkitGetAsEntry&&i.webkitGetAsEntry()).filter(Boolean);
+  if(items.length){for(const en of items)await walk(en,'');ingest(out)}
+  else ingest([...e.dataTransfer.files]);
+});
+</script>
+</body>
+</html>
