@@ -79,7 +79,7 @@ details{margin-top:28px;color:var(--mut);font-size:.9rem} summary{cursor:pointer
 <details>
 <summary>🧠 Good to know</summary>
 <p>Works with Unity 2020+ builds (files named <code>*.loader.js</code>, <code>*.framework.js</code>, <code>*.data</code>, <code>*.wasm</code>). Files stay gzip-compressed inside the output (uncompressed builds get compressed for you), so the result is much smaller than the raw build. Brotli (<code>.br</code>) isn't supported by browsers' built-in tools, so rebuild with Compression Format set to Gzip or Disabled.</p>
-<p>Everything is base64-encoded inside the file. Don't paste the code into websites, upload the .html file instead, since a file this big can crash text boxes. Games using a <code>StreamingAssets</code> folder will need those assets inlined separately, they can't be loaded from a single file.</p>
+<p>Don't paste the code into websites since it can crash especially with big projects, upload the .html file instead, since a file this big can crash text boxes. Games using a <code>StreamingAssets</code> folder will need those assets inlined separately, they can't be loaded from a single file.</p>
 <p>Open this page with an internet connection once, since it pulls the zip reader from cdnjs.</p>
 </details>
 </main>
