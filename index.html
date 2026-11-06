@@ -41,6 +41,21 @@ input[type=file]{display:none}
 .fgrid button.txt{width:auto;padding:0 12px;font-size:.9rem}
 .fgrid button[aria-pressed=true]{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc)}
 .fgrid img{width:30px;height:30px;border-radius:6px}
+[hidden]{display:none!important}
+.gh{margin:0 0 20px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:12px 14px}
+.ghrow{position:relative;display:flex;align-items:center;gap:10px}
+.chk{display:flex;align-items:center;gap:8px;font-weight:700;cursor:pointer}
+.chk input{width:20px;height:20px;accent-color:var(--acc)}
+.chk small{color:var(--mut);font-weight:400}
+.tip{width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-size:.8rem;font-weight:800;cursor:help}
+.tipbox{display:none;position:absolute;left:0;top:calc(100% + 8px);z-index:5;max-width:min(320px,100%);background:var(--ink);color:var(--bg);padding:10px 12px;border-radius:10px;font-size:.85rem;font-weight:400;line-height:1.4;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.tip:hover .tipbox,.tip:focus .tipbox{display:block}
+#ghPanel{margin-top:12px;font-size:.9rem;color:var(--mut)}
+#ghPanel p{margin:0 0 8px}
+.ghline{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}
+#ghPanel input[type=password],#ghPanel input[type=text]{flex:1;min-width:0;width:100%;font:inherit;padding:9px 11px;border:2px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+#ghPanel a{color:var(--acc);font-weight:700}
+#ghNote{min-height:1.2em}#ghNote.err{color:var(--err);font-weight:700}
 details{margin-top:28px;color:var(--mut);font-size:.9rem} summary{cursor:pointer;font-weight:700;color:var(--ink)}
 </style>
 </head>
@@ -72,6 +87,26 @@ details{margin-top:28px;color:var(--mut);font-size:.9rem} summary{cursor:pointer
   <input type="file" id="fUp" accept="image/*">
 </div>
 
+<div class="gh">
+  <div class="ghrow">
+    <label class="chk"><input type="checkbox" id="ghOn"> 🐙 Attach to GitHub <small>(optional)</small></label>
+    <span class="tip" tabindex="0" aria-describedby="ghTip" aria-label="What does Attach to GitHub do?">?<span class="tipbox" id="ghTip" role="tooltip">Puts the game files on your GitHub account to reduce the HTML file size, and lets you link your account to GitHub.</span></span>
+  </div>
+  <div id="ghPanel" hidden>
+    <div id="ghOff">
+      <p>Paste a GitHub token to link your account. It stays in this browser and is only ever sent to github.com.</p>
+      <div class="ghline"><input type="password" id="ghTok" placeholder="Paste token (ghp_...)" autocomplete="off" aria-label="GitHub token"><button type="button" id="ghLinkBtn">🔗 Link</button></div>
+      <p><a href="https://github.com/settings/tokens/new?scopes=public_repo&description=Unity%20Squasher" target="_blank" rel="noopener">Create a token ↗</a> (the <code>public_repo</code> box is pre-ticked, nothing else needed)</p>
+    </div>
+    <div id="ghOkBox" hidden>
+      <div class="ghline"><span>✅ Linked as <b id="ghWho"></b></span><button type="button" id="ghUnlink">Unlink</button></div>
+      <p><input type="text" id="ghRepo" value="unity-squasher-games" aria-label="Repository name"></p>
+      <p>Files go in a <b>public</b> repo with that name (created if missing), one folder per game. Anyone with the link can download them, and the game needs internet plus that repo to keep existing.</p>
+    </div>
+    <div id="ghNote" role="status"></div>
+  </div>
+</div>
+
 <button class="go" id="go" disabled>⚡ Squash it into one HTML</button>
 <div class="bar" id="bar"><i id="bi"></i></div>
 <div id="log" role="status"></div>
@@ -79,7 +114,8 @@ details{margin-top:28px;color:var(--mut);font-size:.9rem} summary{cursor:pointer
 <details>
 <summary>🧠 Good to know</summary>
 <p>Works with Unity 2020+ builds (files named <code>*.loader.js</code>, <code>*.framework.js</code>, <code>*.data</code>, <code>*.wasm</code>). Files stay gzip-compressed inside the output (uncompressed builds get compressed for you), so the result is much smaller than the raw build. Brotli (<code>.br</code>) isn't supported by browsers' built-in tools, so rebuild with Compression Format set to Gzip or Disabled.</p>
-<p>Don't paste the code into websites since it can crash especially with big projects, upload the .html file instead, since a file this big can crash text boxes. Games using a <code>StreamingAssets</code> folder will need those assets inlined separately, they can't be loaded from a single file.</p>
+<p>Everything is base64-encoded inside the file. Don't paste the code into websites, upload the .html file instead, since a file this big can crash text boxes. If your build has a <code>StreamingAssets</code> folder, it gets packed in too and handed to Unity on demand. Big StreamingAssets make the file larger and the game slower to start.</p>
+<p>🐙 <b>Attach to GitHub</b> uploads the heavy files (framework, data, wasm, StreamingAssets) to a public repo on your account and leaves only a tiny loader in the HTML. The game then downloads them when it starts, so it needs internet.</p>
 <p>Open this page with an internet connection once, since it pulls the zip reader from cdnjs.</p>
 </details>
 </main>
@@ -113,6 +149,17 @@ function pick(kind){
   const hits=[...files.keys()].filter(p=>KINDS[kind].test(p)&&!/StreamingAssets/i.test(p));
   return hits[0]||null;
 }
+const SKIP=/\.(png|jpe?g|gif|webp|mp3|ogg|m4a|aac|mp4|webm|zip|gz|br|unityweb)$/i;
+function saKey(p){const m=p.match(/(?:^|\/)StreamingAssets\/(.+)$/i);return m?m[1]:null}
+function saList(){return [...files.keys()].map(p=>[p,saKey(p)]).filter(x=>x[1])}
+async function saPrep(b,name){
+  if(!SKIP.test(name)&&'CompressionStream' in window){
+    const c=await new Response(b.stream().pipeThrough(new CompressionStream('gzip'))).blob();
+    if(c.size<b.size)return {f:'g',blob:c};
+  }
+  return {f:'r',blob:b};
+}
+async function saEnc(b,name){const r=await saPrep(b,name);return r.f+':'+await b64(r.blob)}
 async function scan(){
   const ul=$('found');ul.innerHTML='';
   let all=true;
@@ -122,6 +169,10 @@ async function scan(){
     else{all=false;li.className='bad';li.innerHTML='<span>❌ missing '+k+' file</span><em></em>'}
     ul.appendChild(li);
   }
+  const sa=saList(),sli=document.createElement('li');
+  sli.className=sa.length?'ok':'';
+  sli.innerHTML=sa.length?'<span>✅ StreamingAssets ('+sa.length+' files)</span><em>'+MB(sa.reduce((n,x)=>n+files.get(x[0]).size,0))+'</em>':'<span>➖ no StreamingAssets (optional)</span><em></em>';
+  ul.appendChild(sli);
   const idx=[...files.keys()].find(p=>/(^|\/)index\.html$/i.test(p));
   if(idx&&!$('title').value){
     const t=await files.get(idx).text();
@@ -146,27 +197,55 @@ function setBar(p){$('bar').style.display='block';$('bi').style.width=p+'%'}
 async function build(){
   $('go').disabled=true;
   try{
-    const parts={};const kinds=Object.keys(KINDS);
+    const useGh=$('ghOn').checked;
+    if(useGh&&!ghAuth)throw new Error('Link your GitHub account first (paste a token in the GitHub box) 🐙');
+    let G0=null;
+    if(useGh){log('Getting your GitHub repo ready… 🐙');setBar(2);G0=await ghPrep($('title').value.trim()||'Unity Game')}
+    const parts={};const kinds=Object.keys(KINDS);const sa=saList(),sp=[];
     for(let i=0;i<kinds.length;i++){
       const k=kinds[i],p=pick(k);
-      log('Unpacking & encoding '+k+'… 🧙');setBar(i/kinds.length*100);
-      parts[k]=await b64(await raw(files.get(p),p));
+      log('Unpacking & encoding '+k+'… 🧙');setBar(i/kinds.length*(sa.length?50:100));
+      const blob=await raw(files.get(p),p);
+      if(G0&&k!=='loader'){log('Uploading '+k+' to GitHub… ⬆️');parts[k]={u:await ghPut(G0,k+'.bin',blob)}}
+      else parts[k]=await b64(blob);
+    }
+    if(useGh&&sa.length){
+      const packs=[];let cur={bl:[],size:0,idx:[]};
+      for(let i=0;i<sa.length;i++){
+        log('Preparing StreamingAssets '+(i+1)+'/'+sa.length+'… 📦');setBar(50+i/sa.length*20);
+        const r=await saPrep(files.get(sa[i][0]),sa[i][1]);
+        if(cur.size&&cur.size+r.blob.size>PACK_MAX){packs.push(cur);cur={bl:[],size:0,idx:[]}}
+        cur.idx.push([sa[i][1],r.f,cur.size,r.blob.size]);cur.bl.push(r.blob);cur.size+=r.blob.size;
+      }
+      packs.push(cur);
+      for(let pi=0;pi<packs.length;pi++){
+        log('Uploading StreamingAssets '+(pi+1)+'/'+packs.length+' to GitHub… ⬆️');setBar(70+pi/packs.length*25);
+        const nm=await ghPut(G0,'sa'+pi+'.bin',new Blob(packs[pi].bl));
+        packs[pi].idx.forEach(x=>sp.push([x[0],{f:x[1],o:x[2],n:x[3],u:nm}]));
+      }
+    }else for(let i=0;i<sa.length;i++){
+      log('Packing StreamingAssets '+(i+1)+'/'+sa.length+'… 📦');setBar(50+i/sa.length*45);
+      sp.push([sa[i][1],await saEnc(files.get(sa[i][0]),sa[i][1])]);
     }
     setBar(95);log('Assembling the final file… 🧩');
     const title=$('title').value.trim()||'Unity Game',bg=$('bg').value;
+    const base=G0?ghBase(G0):'';
     const cfg=JSON.stringify({companyName:'Company',productName:title,productVersion:'1.0'}).replace(/</g,'\\u003c');
     const head='<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>'+esc(title)+'</title>'+(fav?'<link rel="icon" href="'+fav+'">':'')+'<style>html,body{margin:0;height:100%;background:'+bg+';overflow:hidden}#c{width:100%;height:100%;display:block}#l{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:240px;height:10px;background:#444;border-radius:5px;overflow:hidden}#b{height:100%;width:0;background:#fff}</style></head><body><canvas id="c"></canvas><div id="l"><div id="b"></div></div><script>\nvar F={';
-    const run='};\nvar T={loader:"text/javascript",framework:"text/javascript",data:"application/octet-stream",wasm:"application/wasm"};\nasync function d(s,t){var n=atob(s),a=new Uint8Array(n.length);for(var i=0;i<n.length;i++)a[i]=n.charCodeAt(i);var r=await new Response(new Blob([a]).stream().pipeThrough(new DecompressionStream("gzip"))).blob();return URL.createObjectURL(new Blob([r],{type:t}))}\n(async function(){var U={},K=["loader","framework","data","wasm"];for(var j=0;j<K.length;j++){U[K[j]]=await d(F[K[j]],T[K[j]]);F[K[j]]=null}\nvar s=document.createElement("script");s.src=U.loader;\ns.onload=function(){var c=Object.assign({dataUrl:U.data,frameworkUrl:U.framework,codeUrl:U.wasm,streamingAssetsUrl:"StreamingAssets"},'+cfg+');\ncreateUnityInstance(document.getElementById("c"),c,function(p){document.getElementById("b").style.width=p*100+"%"}).then(function(){document.getElementById("l").remove()}).catch(function(e){alert(e)})};\ndocument.body.appendChild(s)})().catch(function(e){alert(e)});\n<\/script></body></html>';
+    const run='var T={loader:"text/javascript",framework:"text/javascript",data:"application/octet-stream",wasm:"application/wasm"};\nvar PC={};\nasync function G(s){if(/^https:/.test(s)){var r=await fetch(s);if(!r.ok)throw new Error("Could not load "+s+" ("+r.status+")");return await r.blob()}var n=atob(s),a=new Uint8Array(n.length);for(var i=0;i<n.length;i++)a[i]=n.charCodeAt(i);return new Blob([a])}\nfunction PK(u){return PC[u]||(PC[u]=G(u))}\nasync function d(s,t){var r=await new Response((await G(s)).stream().pipeThrough(new DecompressionStream("gzip"))).blob();return URL.createObjectURL(new Blob([r],{type:t}))}\nvar M={mp4:"video/mp4",webm:"video/webm",ogg:"audio/ogg",mp3:"audio/mpeg",wav:"audio/wav",json:"application/json",txt:"text/plain",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg"},V={};\nasync function e(z,k){var b,f;if(typeof z=="object"){b=(await PK(z.u)).slice(z.o,z.o+z.n);f=z.f}else{f=z[0];b=await G(z.slice(2))}if(f=="g")b=await new Response(b.stream().pipeThrough(new DecompressionStream("gzip"))).blob();return URL.createObjectURL(new Blob([b],{type:M[k.split(".").pop().toLowerCase()]||"application/octet-stream"}))}\nfunction Q(u){u=String(u);try{u=decodeURIComponent(u)}catch(x){}var i=u.toLowerCase().indexOf("streamingassets/");return i<0?null:u.slice(i+16).split("?")[0].split("#")[0]}\nfunction R(u){var k=Q(u);return k!==null&&V[k]?V[k]:u}\nvar xo=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){arguments[1]=R(u);return xo.apply(this,arguments)};\nvar ft=window.fetch;window.fetch=function(i,o){if(typeof i=="string"||i instanceof URL)i=R(i);else if(i&&i.url){var r=R(i.url);if(r!==i.url)i=new Request(r,i)}return ft.call(this,i,o)};\nvar sd=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,"src");Object.defineProperty(HTMLMediaElement.prototype,"src",{get:sd.get,set:function(v){sd.set.call(this,R(v))},configurable:true});\n(async function(){var U={},K=["loader","framework","data","wasm"];for(var j=0;j<K.length;j++){U[K[j]]=await d(F[K[j]],T[K[j]]);F[K[j]]=null}\nfor(var q in S){V[q]=await e(S[q],q);S[q]=null}\nvar s=document.createElement("script");s.src=U.loader;\ns.onload=function(){var c=Object.assign({dataUrl:U.data,frameworkUrl:U.framework,codeUrl:U.wasm,streamingAssetsUrl:"StreamingAssets"},'+cfg+');\ncreateUnityInstance(document.getElementById("c"),c,function(p){document.getElementById("b").style.width=p*100+"%"}).then(function(){document.getElementById("l").remove()}).catch(function(e){alert(e)})};\ndocument.body.appendChild(s)})().catch(function(e){alert(e)});\n<\/script></body></html>';
     const blobParts=[head];
-    kinds.forEach((k,i)=>{blobParts.push((i?',':'')+k+':`\n');const b=parts[k];for(let o=0;o<b.length;o+=8192)blobParts.push(b.slice(o,o+8192)+'\n');blobParts.push('`')});
+    kinds.forEach((k,i)=>{const v=parts[k];blobParts.push((i?',':'')+k+':');if(typeof v==='object'){blobParts.push(JSON.stringify(base+v.u));return}blobParts.push('`\n');for(let o=0;o<v.length;o+=8192)blobParts.push(v.slice(o,o+8192)+'\n');blobParts.push('`')});
+    blobParts.push('};\nvar S={');
+    sp.forEach(([k,v],i)=>{const key=(i?',':'')+JSON.stringify(k).replace(/</g,'\\u003c')+':';if(typeof v==='object'){blobParts.push(key+JSON.stringify({f:v.f,o:v.o,n:v.n,u:base+v.u}).replace(/</g,'\\u003c')+'\n');return}blobParts.push(key+'`'+v.slice(0,2));const b=v.slice(2);for(let o=0;o<b.length;o+=8192)blobParts.push(b.slice(o,o+8192)+'\n');blobParts.push('`')});
+    blobParts.push('};\n');
     blobParts.push(run);
     const out=new Blob(blobParts,{type:'text/html'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(out);
     a.download=(title.replace(/[^\w-]+/g,'_')||'game')+'.html';
     document.body.appendChild(a);a.click();a.remove();
-    setBar(100);log('Done! 🎉 Your single-file game is '+MB(out.size)+' and has been downloaded.','ok');
-  }catch(e){log('Oops: '+e.message+' 😵','err')}
+    setBar(100);log('Done! 🎉 Your '+(G0?'tiny HTML (game files live at github.com/'+G0.login+'/'+G0.repo+')':'single-file game')+' is '+MB(out.size)+' and has been downloaded.','ok');
+  }catch(e){if(e&&e.status===401){ghUnlink();e=new Error('GitHub rejected the token, so I unlinked it. Link it again and retry 🔑')}log('Oops: '+e.message+' 😵','err')}
   $('go').disabled=false;
 }
 
@@ -201,6 +280,64 @@ $('fUp').onchange=e=>{
   im.src=u;e.target.value='';
 };
 drawFavs();
+
+/* github attach */
+const PACK_MAX=45*1048576;
+let ghAuth=null;
+try{ghAuth=JSON.parse(localStorage.getItem('usq_gh')||'null')}catch(e){}
+async function gh(path,opt,tok){
+  opt=opt||{};
+  const h={'Accept':'application/vnd.github+json','Authorization':'Bearer '+(tok||ghAuth.t)};
+  if(opt.body)h['Content-Type']='application/json';
+  let r;
+  try{r=await fetch('https://api.github.com'+path,{method:opt.method||'GET',headers:h,body:opt.body})}
+  catch(e){throw new Error('Could not reach api.github.com. Open this .html file directly in Chrome/Edge/Firefox (not a chat preview), and check that no network filter or ad blocker is blocking GitHub 🌐')}
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok){const err=new Error((j&&j.message)||('GitHub error '+r.status));err.status=r.status;throw err}
+  return j;
+}
+function ghNote(m,c){const n=$('ghNote');n.textContent=m||'';n.className=c||''}
+function ghDraw(){
+  $('ghPanel').hidden=!$('ghOn').checked;
+  $('ghOff').hidden=!!ghAuth;
+  $('ghOkBox').hidden=!ghAuth;
+  if(ghAuth)$('ghWho').textContent='@'+ghAuth.l;
+}
+async function ghLink(){
+  const t=$('ghTok').value.trim();
+  if(!t)return ghNote('Paste a token first 🔑','err');
+  $('ghLinkBtn').disabled=true;ghNote('Checking token… 🔍');
+  try{
+    const u=await gh('/user',{},t);
+    ghAuth={t:t,l:u.login};
+    try{localStorage.setItem('usq_gh',JSON.stringify(ghAuth))}catch(e){}
+    $('ghTok').value='';ghNote('');
+  }catch(e){ghNote(e.status===401?'GitHub says that token is not valid 😕':e.message,'err')}
+  $('ghLinkBtn').disabled=false;ghDraw();
+}
+function ghUnlink(){ghAuth=null;try{localStorage.removeItem('usq_gh')}catch(e){}ghDraw()}
+async function ghPrep(title){
+  const login=ghAuth.l;
+  const repo=($('ghRepo').value.trim()||'unity-squasher-games').replace(/[^\w.-]+/g,'-');
+  const dir=title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'game';
+  try{await gh('/user/repos',{method:'POST',body:JSON.stringify({name:repo,description:'Game files packed with Unity Squasher',private:false})})}
+  catch(e){if(e.status!==422)throw e}
+  const info=await gh('/repos/'+login+'/'+repo);
+  if(info.private)throw new Error('Repo "'+repo+'" is private, and raw links only work on public repos. Pick another repo name 🔓');
+  const have={};
+  try{(await gh('/repos/'+login+'/'+repo+'/contents/'+dir)).forEach(f=>{have[f.name]=f.sha})}catch(e){if(e.status!==404)throw e}
+  return {login:login,repo:repo,dir:dir,have:have,last:null};
+}
+async function ghPut(c,name,blob){
+  if(blob.size>90*1048576)throw new Error(name+' is '+MB(blob.size)+', over GitHub\'s ~100 MB file limit 😬');
+  const body={message:'Add '+name+' (Unity Squasher)',content:await b64(blob)};
+  if(c.have[name])body.sha=c.have[name];
+  const j=await gh('/repos/'+c.login+'/'+c.repo+'/contents/'+c.dir+'/'+name,{method:'PUT',body:JSON.stringify(body)});
+  c.last=j.commit.sha;
+  return name;
+}
+const ghBase=c=>'https://raw.githubusercontent.com/'+c.login+'/'+c.repo+'/'+c.last+'/'+c.dir+'/';
+$('ghOn').onchange=ghDraw;$('ghLinkBtn').onclick=ghLink;$('ghUnlink').onclick=ghUnlink;ghDraw();
 
 /* inputs */
 $('fFolder').onchange=e=>ingest([...e.target.files]);
