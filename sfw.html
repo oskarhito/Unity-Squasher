@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SWF Squasher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working column (three numbered stages) beside a live build log. Collapses to a single column on phones. */
+:root{
+  --bg:#eceef0; --panel:#f8f9fa; --ink:#14181f; --muted:#5b6471; --line:#cfd4da;
+  --accent:#d9361f; --accent-ink:#ffffff; --ok:#17794a; --warn:#a65f00; --err:#b3261e;
+  --log-bg:#14181f; --log-ink:#cfd6df;
+  --display:"Bricolage Grotesque","Arial Narrow",Arial,sans-serif;
+  --body:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12151a; --panel:#1a1f26; --ink:#eceff3; --muted:#9aa4b2; --line:#2c333d;
+  --accent:#ff5a40; --accent-ink:#1a0805; --ok:#4cc38a; --warn:#e8a33d; --err:#ff8a80;
+  --log-bg:#0b0d10; --log-ink:#c4ccd6; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151a; --panel:#1a1f26; --ink:#eceff3; --muted:#9aa4b2; --line:#2c333d;
+  --accent:#ff5a40; --accent-ink:#1a0805; --ok:#4cc38a; --warn:#e8a33d; --err:#ff8a80;
+  --log-bg:#0b0d10; --log-ink:#c4ccd6; color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--body);
+  padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1120px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:28px}
+h1{font:800 clamp(2.4rem,6vw,4rem)/.95 var(--display);letter-spacing:-.03em;margin:0}
+h1 span{color:var(--accent)}
+.sub{max-width:46ch;color:var(--muted);margin:10px 0 0}
+.tag{font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:24px;align-items:start}
+@media(max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px;margin-bottom:16px;min-width:0}
+.stage h2{font:800 1.15rem var(--display);margin:0 0 4px;letter-spacing:-.01em}
+.stage h2 small{font:500 12px var(--mono);color:var(--accent);margin-right:8px;letter-spacing:.06em}
+.hint{color:var(--muted);font-size:.9rem;margin:0 0 14px}
+#drop{border:2px dashed var(--line);border-radius:6px;padding:28px 16px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+#drop:hover,#drop:focus-visible,#drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent);outline:none}
+#drop strong{display:block;font:800 1.1rem var(--display)}
+#drop .file{font:500 13px var(--mono);color:var(--ok);margin-top:8px;overflow-wrap:anywhere}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){.modes{grid-template-columns:1fr}}
+.mode{display:block;border:1px solid var(--line);border-radius:6px;padding:12px 14px;cursor:pointer;position:relative}
+.mode input{position:absolute;opacity:0}
+.mode b{display:block;font-family:var(--display);font-weight:800}
+.mode span{font-size:.85rem;color:var(--muted)}
+.mode:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.mode:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+@media(max-width:520px){.fields{grid-template-columns:1fr}}
+.fields .full{grid-column:1/-1}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.85rem;font-weight:600;min-width:0}
+input[type=text],input[type=password],select{font:400 15px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:9px 10px;width:100%;min-width:0}
+input[type=color]{width:100%;height:40px;border:1px solid var(--line);border-radius:4px;background:var(--bg);padding:3px}
+input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:.9rem;font-weight:500}
+.check input{margin-top:4px;accent-color:var(--accent)}
+#ghbox[hidden]{display:none}
+.note{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+.note a{color:var(--accent)}
+button.go{font:800 1.05rem var(--display);background:var(--accent);color:var(--accent-ink);border:0;border-radius:5px;padding:14px 22px;cursor:pointer;width:100%}
+button.go:disabled{opacity:.45;cursor:not-allowed}
+button.alt{font:600 .9rem var(--body);background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:8px 12px;cursor:pointer}
+.log-wrap{position:sticky;top:16px}
+#log{background:var(--log-bg);color:var(--log-ink);font:400 12.5px/1.6 var(--mono);border-radius:6px;padding:14px;margin:0;height:420px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+#log .ok{color:var(--ok)} #log .warn{color:var(--warn)} #log .err{color:var(--err)} #log .dim{opacity:.55}
+#result{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+#result a.btn{display:block;text-align:center;text-decoration:none;font:600 .95rem var(--body);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:10px;background:var(--panel);overflow-wrap:anywhere}
+#result a.btn:hover{border-color:var(--accent)}
+footer{margin-top:28px;color:var(--muted);font-size:.85rem}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <div class="tag">.swf &rarr; .html &middot; runs on Ruffle</div>
+    <h1>SWF <span>Squasher</span></h1>
+    <p class="sub">Turn a Flash game into a web page that plays in any modern browser. Push it to GitHub or just download one HTML file.</p>
+  </div>
+  <button class="alt" id="theme" type="button">Toggle theme</button>
+</header>
+
+<div class="grid">
+<main>
+  <section class="stage">
+    <h2><small>STAGE 1</small>Pick your SWF</h2>
+    <p class="hint">Drop a .swf file here, or click to browse. It never leaves your browser unless you choose GitHub.</p>
+    <div id="drop" tabindex="0" role="button" aria-label="Choose a SWF file">
+      <strong>Drop SWF here</strong>
+      <span>or click to choose a file</span>
+      <div class="file" id="fileName"></div>
+    </div>
+    <input type="file" id="fileInput" accept=".swf,application/x-shockwave-flash" hidden>
+  </section>
+
+  <section class="stage">
+    <h2><small>STAGE 2</small>Where should it go?</h2>
+    <p class="hint">GitHub mode keeps everything in one repository and installs Ruffle there for you. HTML only gives you a single file.</p>
+    <div class="modes" role="radiogroup" aria-label="Output mode">
+      <label class="mode"><input type="radio" name="mode" value="github" checked><b>GitHub repository</b><span>Small HTML linked to your one repo, which stores Ruffle and the SWF</span></label>
+      <label class="mode"><input type="radio" name="mode" value="html"><b>HTML only</b><span>One file with the game and Ruffle inside. No other files needed</span></label>
+    </div>
+
+    <div id="htmlbox" hidden>
+      <div class="fields">
+        <label class="check full"><input type="checkbox" id="inlineRuffle" checked> Put Ruffle inside the HTML file (one file, works offline, bigger)</label>
+      </div>
+      <div class="fields">
+        <label class="check full"><input type="checkbox" id="cdnFallback"> Safety net: if the bundled Ruffle can't start, load it from unpkg.com (adds one outside link)</label>
+      </div>
+      <p class="note">Ruffle is gzip-compressed inside the page and its splash logo is switched off. With both boxes as they are, the file makes no outside requests. Untick the first box to always use a CDN and get a tiny file.</p>
+    </div>
+
+    <div id="ghbox">
+      <div class="fields">
+        <label class="f full" for="token">GitHub token
+          <input type="password" id="token" autocomplete="off" spellcheck="false" placeholder="ghp_...">
+        </label>
+        <label class="check full"><input type="checkbox" id="remember"> Remember token on this device</label>
+        <p class="note full" style="margin-top:-6px">Create a <a href="https://github.com/settings/tokens/new?scopes=repo&description=SWF%20Squasher" target="_blank" rel="noopener">classic token with the <code>repo</code> scope</a>. It is only ever sent to api.github.com.</p>
+        <label class="f full" for="repo">Repository name (always the only one used)
+          <input type="text" id="repo" value="swf-games" spellcheck="false">
+        </label>
+        <label class="check full"><input type="checkbox" id="embedSwf"> Put the SWF inside the HTML too (otherwise it is linked from the repository)</label>
+        <label class="check full"><input type="checkbox" id="forceRuffle"> Re-install Ruffle even if the repository already has it</label>
+      </div>
+      <p class="note">You get a small HTML file that has the game's own code inside and loads the large files from your repository. If the repository does not exist it is created, Ruffle goes in <code>ruffle/</code> only when missing, and each SWF goes in <code>games/&lt;name&gt;/</code>. The repository has to stay public for the links to work. GitHub Pages is not used: the HTML reads the repository's raw files and is pinned to the commit made during this conversion, so later pushes can't break it.</p>
+    </div>
+  </section>
+
+  <section class="stage">
+    <h2><small>STAGE 3</small>Page settings</h2>
+    <div class="fields">
+      <label class="f full" for="title">Page title<input type="text" id="title" value="My Flash Game"></label>
+      <label class="f" for="scale">Scaling
+        <select id="scale">
+          <option value="showAll">Fit, keep proportions</option>
+          <option value="noBorder">Fill, crop edges</option>
+          <option value="exactFit">Stretch to window</option>
+          <option value="noScale">Original size</option>
+        </select>
+      </label>
+      <label class="f" for="autoplay">Autoplay
+        <select id="autoplay">
+          <option value="auto">Auto (needs click if sound is blocked)</option>
+          <option value="on">Always start</option>
+          <option value="off">Click to play</option>
+        </select>
+      </label>
+      <label class="f" for="bg">Background<input type="color" id="bg" value="#000000"></label>
+    </div>
+  </section>
+
+  <button class="go" id="go" type="button" disabled>Squash it</button>
+  <div id="result"></div>
+</main>
+
+<aside class="log-wrap">
+  <div class="tag" style="margin-bottom:8px">Build log</div>
+  <pre id="log" aria-live="polite"></pre>
+</aside>
+</div>
+
+<footer>Ruffle is an open-source Flash Player emulator. Some older ActionScript 3 games may not run perfectly.</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const logEl=$("log");
+function log(msg,cls){
+  const d=document.createElement("div"); if(cls)d.className=cls;
+  d.textContent=new Date().toLocaleTimeString([], {hour12:false})+"  "+msg;
+  logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight;
+}
+log("Ready. Choose a SWF to begin.","dim");
+
+/* theme toggle */
+$("theme").addEventListener("click",()=>{
+  const r=document.documentElement;
+  const dark=r.getAttribute("data-theme")==="dark"||(!r.getAttribute("data-theme")&&matchMedia("(prefers-color-scheme:dark)").matches);
+  r.setAttribute("data-theme",dark?"light":"dark");
+});
+
+/* saved settings */
+try{
+  const t=localStorage.getItem("swfsq.token"); if(t){$("token").value=t;$("remember").checked=true;}
+  const r=localStorage.getItem("swfsq.repo"); if(r)$("repo").value=r;
+}catch(e){}
+
+/* file handling */
+let swfFile=null;
+const drop=$("drop"), input=$("fileInput");
+function setFile(f){
+  if(!f)return;
+  if(!/\.swf$/i.test(f.name)){log("That is not a .swf file: "+f.name,"err");return;}
+  swfFile=f;
+  $("fileName").textContent=f.name+"  ("+(f.size/1024).toFixed(1)+" KB)";
+  $("title").value=f.name.replace(/\.swf$/i,"").replace(/[_-]+/g," ").replace(/\b\w/g,c=>c.toUpperCase());
+  $("go").disabled=false;
+  log("Loaded "+f.name+" ("+f.size+" bytes)","ok");
+}
+drop.addEventListener("click",()=>input.click());
+drop.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();input.click();}});
+input.addEventListener("change",()=>setFile(input.files[0]));
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop",e=>setFile(e.dataTransfer.files[0]));
+
+/* mode toggle */
+function mode(){return document.querySelector('input[name="mode"]:checked').value;}
+document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change",()=>{
+  $("ghbox").hidden=mode()!=="github";
+  $("htmlbox").hidden=mode()!=="html";
+  $("go").textContent=mode()==="github"?"Squash and push to GitHub":"Squash into one HTML file";
+}));
+$("go").textContent="Squash and push to GitHub";
+
+/* helpers */
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function slug(s){return (String(s).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")||"game").slice(0,60);}
+function toB64(buf){
+  const u=new Uint8Array(buf); let s=""; const CH=0x8000;
+  for(let i=0;i<u.length;i+=CH)s+=String.fromCharCode.apply(null,u.subarray(i,i+CH));
+  return btoa(s);
+}
+
+function buildHTML(o){
+  const cfg={autoplay:o.autoplay,unmuteOverlay:"visible",letterbox:"on",scaleMode:o.scale,forceScale:true,backgroundColor:o.bg,splashScreen:false};
+  const swfLoad=o.b64
+    ? "var data=Uint8Array.from(atob('"+o.b64+"'),function(c){return c.charCodeAt(0);});\n      return player.load({data:data});"
+    : "return player.load({url:"+JSON.stringify(o.swfUrl)+"});";
+  const swfNote=o.b64?"\"\"":JSON.stringify("\n\nGame file:\n"+o.swfUrl);
+  return "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+  +"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n"
+  +"<title>"+esc(o.title)+"</title>\n"
+  +"<style>html,body{margin:0;height:100%;background:"+esc(o.bg)+"}#game{width:100%;height:100%}</style>\n"
+  +"<script>window.RufflePlayer=window.RufflePlayer||{};window.RufflePlayer.config="+JSON.stringify(cfg)+";<\/script>\n"
+  +"<script src=\""+esc(o.ruffleSrc)+"\" onerror=\"window.__ruffleFailed=true\"><\/script>\n</head>\n<body>\n<div id=\"game\"></div>\n<script>\n"
+  +"(function(){\n"
+  +"  var host=document.getElementById('game');\n"
+  +"  var msgCss='color:#fff;font:16px system-ui,sans-serif;padding:16px;white-space:pre-wrap;overflow-wrap:anywhere';\n"
+  +"  host.style.cssText=msgCss; host.textContent='Loading game...';\n"
+  +"  function fail(m){host.style.cssText=msgCss; host.textContent=m; console.error(m);}\n"
+  +"  window.addEventListener('load',function(){\n"
+  +"    if(window.__ruffleFailed||!window.RufflePlayer||typeof window.RufflePlayer.newest!=='function'){\n"
+  +"      fail('Could not load Ruffle from:\\n'+"+JSON.stringify(o.ruffleSrc)+"+'\\n\\nCheck that this link opens in a browser, that the repository is public, and, for GitHub Pages, that the first build has finished (it can take a few minutes).');\n"
+  +"      return;\n    }\n"
+  +"    try{\n"
+  +"      var player=window.RufflePlayer.newest().createPlayer();\n"
+  +"      host.style.cssText=''; host.textContent='';\n"
+  +"      player.style.width='100%'; player.style.height='100%';\n"
+  +"      host.appendChild(player);\n"
+  +"      Promise.resolve((function(){\n      "+swfLoad+"\n      })()).catch(function(e){fail('Could not start the game:\\n'+(e&&e.message?e.message:e)+"+swfNote+");});\n"
+  +"    }catch(e){fail('Could not start the game:\\n'+(e&&e.message?e.message:e));}\n"
+  +"  });\n})();\n<\/script>\n</body>\n</html>\n";
+}
+
+/* ---- Finding and downloading Ruffle (tries unpkg and jsDelivr) ---- */
+async function tryFetch(url,label){
+  try{
+    const r=await fetch(url);
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return r;
+  }catch(e){
+    log("  "+label+" failed: "+(e&&e.message?e.message:e),"warn");
+    return null;
+  }
+}
+function flattenMeta(node,out){
+  if(node.type==="file")out.push({name:node.path});
+  else if(node.files)node.files.forEach(c=>flattenMeta(c,out));
+  return out;
+}
+async function listRuffle(){
+  log("Looking up the latest Ruffle build...");
+  let r=await tryFetch("https://unpkg.com/@ruffle-rs/ruffle@latest/?meta","unpkg listing");
+  if(r){
+    try{
+      const j=await r.json();
+      const m=r.url.match(/@ruffle-rs\/ruffle@([^/]+)/);
+      const files=flattenMeta(j,[]);
+      if(m&&files.length)return {version:m[1],files:files};
+      log("  unpkg listing had no usable files.","warn");
+    }catch(e){log("  unpkg listing unreadable: "+e.message,"warn");}
+  }
+  r=await tryFetch("https://data.jsdelivr.com/v1/packages/npm/@ruffle-rs/ruffle/resolved?specifier=latest","jsDelivr version lookup");
+  if(r){
+    try{
+      const version=(await r.json()).version;
+      const fl=await tryFetch("https://data.jsdelivr.com/v1/packages/npm/@ruffle-rs/ruffle@"+version+"?structure=flat","jsDelivr file list");
+      if(fl){
+        const files=(await fl.json()).files.map(f=>({name:f.name}));
+        if(files.length)return {version:version,files:files};
+      }
+    }catch(e){log("  jsDelivr listing unreadable: "+e.message,"warn");}
+  }
+  throw new Error("Could not reach Ruffle's download servers (unpkg and jsDelivr). If this page is open inside a preview or an embed, open it in a normal browser tab instead. Ad blockers and strict networks can also block these hosts.");
+}
+async function getRuffleFile(version,name){
+  const p=name.replace(/^\//,"");
+  const urls=["https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@"+version+"/"+p,"https://unpkg.com/@ruffle-rs/ruffle@"+version+"/"+p];
+  for(const u of urls){
+    const r=await tryFetch(u,"download "+p);
+    if(r)return r.arrayBuffer();
+  }
+  throw new Error("Could not download "+p+" from jsDelivr or unpkg.");
+}
+
+/* ---- Fully inline build: Ruffle gzip-compressed inside the HTML ---- */
+async function gzip(buf){
+  return new Response(new Blob([buf]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
+}
+let bundleCache=null;
+async function getRuffleBundle(){
+  if(bundleCache)return bundleCache;
+  if(typeof CompressionStream==="undefined")throw new Error("This browser cannot compress files (no CompressionStream). Use a current Chrome, Edge, Firefox or Safari, or untick the bundle option.");
+  const listing=await listRuffle();
+  const version=listing.version;
+  const files=listing.files.filter(f=>/\.(js|wasm)$/.test(f.name));
+  log("Ruffle "+version+": bundling "+files.length+" files (js + wasm), compressing...");
+  const out={}; let raw=0,packed=0,n=0;
+  for(const f of files){
+    n++;
+    const buf=await getRuffleFile(version,f.name);
+    const z=await gzip(buf);
+    raw+=buf.byteLength; packed+=z.byteLength;
+    out[f.name.replace(/^\//,"")]=toB64(z);
+    log("  ["+n+"/"+files.length+"] "+f.name.replace(/^\//,"")+"  "+(buf.byteLength/1048576).toFixed(2)+" MB -> "+(z.byteLength/1048576).toFixed(2)+" MB","dim");
+  }
+  log("Ruffle squashed: "+(raw/1048576).toFixed(1)+" MB -> "+(packed/1048576).toFixed(1)+" MB (before base64).","ok");
+  bundleCache=JSON.stringify(out);
+  return bundleCache;
+}
+
+/* Runs inside the finished page. Self-contained: it is copied into the output with toString(). */
+function inlineRuntime(CFG,CDN){
+  var BASE="https://ruffle.invalid/ruffle/";
+  var cfg=Object.assign({},CFG);
+  var used=false;
+  function fromB64(s){return fetch("data:application/octet-stream;base64,"+s).then(function(r){return r.arrayBuffer();});}
+  function gunzip(buf){return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();}
+  function mount(){
+    var host=document.getElementById("game"); host.style.cssText=""; host.textContent="";
+    var player=window.RufflePlayer.newest().createPlayer();
+    player.style.width="100%"; player.style.height="100%";
+    host.appendChild(player);
+    return fromB64(document.getElementById("swf").textContent).then(function(buf){return player.load({data:new Uint8Array(buf)});});
+  }
+  function fallback(why){
+    if(used)return; used=true;
+    if(!CDN){
+      console.error("Bundled Ruffle failed to start:",why);
+      var h=document.getElementById("game");
+      h.style.cssText="color:#fff;font:16px system-ui,sans-serif;padding:16px";
+      h.textContent="Could not start the game: "+(why&&why.message?why.message:why);
+      return;
+    }
+    console.warn("Bundled Ruffle failed, loading it from a CDN instead:",why);
+    delete cfg.publicPath;
+    window.RufflePlayer={config:cfg};
+    var s=document.createElement("script");
+    s.src=CDN;
+    s.onload=function(){mount().catch(function(e){console.error(e);});};
+    document.head.appendChild(s);
+  }
+  function boot(){
+    var data=JSON.parse(document.getElementById("rf").textContent);
+    var blobs={};
+    return Promise.all(Object.keys(data).map(function(n){
+      return fromB64(data[n]).then(gunzip).then(function(buf){
+        blobs[n]=URL.createObjectURL(new Blob([buf],{type:/\.wasm$/.test(n)?"application/wasm":"text/javascript"}));
+      });
+    })).then(function(){
+      if(!blobs["ruffle.js"])throw new Error("ruffle.js missing from bundle");
+      function map(u){
+        u=String(u);
+        if(u.indexOf(BASE)===0){var n=u.slice(BASE.length).split(/[?#]/)[0]; if(blobs[n])return blobs[n];}
+        return u;
+      }
+      var realFetch=window.fetch;
+      window.fetch=function(input,init){
+        var u=(typeof input==="string")?input:(input&&input.url)?input.url:String(input);
+        var m=map(u);
+        if(m!==u)return realFetch.call(this,m,init);
+        return realFetch.apply(this,arguments);
+      };
+      var d=Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype,"src");
+      Object.defineProperty(HTMLScriptElement.prototype,"src",{configurable:true,enumerable:d.enumerable,get:d.get,set:function(v){d.set.call(this,map(v));}});
+      var realSet=Element.prototype.setAttribute;
+      Element.prototype.setAttribute=function(k,v){
+        if(k==="src"&&this instanceof HTMLScriptElement)v=map(v);
+        return realSet.call(this,k,v);
+      };
+      cfg.publicPath=BASE;
+      window.RufflePlayer=window.RufflePlayer||{};
+      window.RufflePlayer.config=cfg;
+      return new Promise(function(res,rej){
+        var s=document.createElement("script");
+        s.src=BASE+"ruffle.js";
+        s.onload=res;
+        s.onerror=function(){rej(new Error("ruffle.js failed to run"));};
+        document.head.appendChild(s);
+      });
+    });
+  }
+  var h0=document.getElementById("game");
+  h0.style.cssText="color:#fff;font:16px system-ui,sans-serif;padding:16px";
+  h0.textContent="Loading game...";
+  var timer=setTimeout(function(){fallback("timeout");},60000);
+  boot().then(function(){clearTimeout(timer);return mount();}).catch(function(e){clearTimeout(timer);fallback(e);});
+}
+
+function buildInlineHTML(o){
+  const cfg={autoplay:o.autoplay,unmuteOverlay:"visible",letterbox:"on",scaleMode:o.scale,forceScale:true,backgroundColor:o.bg,splashScreen:false};
+  return "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+  +"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n"
+  +"<title>"+esc(o.title)+"</title>\n"
+  +"<style>html,body{margin:0;height:100%;background:"+esc(o.bg)+"}#game{width:100%;height:100%}</style>\n"
+  +"</head>\n<body>\n<div id=\"game\"></div>\n"
+  +"<!-- Ruffle (ruffle.rs) is bundled below, gzip-compressed. It is dual-licensed MIT or Apache-2.0. -->\n"
+  +"<script id=\"swf\" type=\"text/plain\">"+o.b64+"<\/script>\n"
+  +"<script id=\"rf\" type=\"text/plain\">"+o.bundle+"<\/script>\n"
+  +"<script>\n("+inlineRuntime.toString()+")("+JSON.stringify(cfg)+","+JSON.stringify(o.cdn||"")+");\n<\/script>\n</body>\n</html>\n";
+}
+
+/* ---- Linked build: small HTML that pulls Ruffle (and the SWF) from the GitHub repository ---- */
+/* Runs inside the finished page; copied into the output with toString(). */
+function linkedRuntime(CFG,FILES,BASE,SWF){
+  var FAKE="https://ruffle.invalid/ruffle/";
+  var host=document.getElementById("game");
+  var css="color:#fff;font:16px system-ui,sans-serif;padding:16px;white-space:pre-wrap;overflow-wrap:anywhere";
+  function say(m){host.style.cssText=css;host.textContent=m;}
+  function fail(e){say("Could not start the game:\n"+(e&&e.message?e.message:e));console.error(e);}
+  function get(url){
+    return fetch(url).then(function(r){
+      if(!r.ok)throw new Error("HTTP "+r.status+" for "+url+(r.status===404?"\n(the repository must be public and the file must exist)":""));
+      return r.arrayBuffer();
+    });
+  }
+  say("Loading game...");
+  var blobs={},done=0;
+  var jobs=FILES.map(function(n){
+    return get(BASE+n).then(function(buf){
+      blobs[n]=URL.createObjectURL(new Blob([buf],{type:/\.wasm$/.test(n)?"application/wasm":"text/javascript"}));
+      done++; say("Loading Ruffle... "+done+"/"+FILES.length);
+    });
+  });
+  var swfJob=SWF?get(SWF):fetch("data:application/octet-stream;base64,"+document.getElementById("swf").textContent).then(function(r){return r.arrayBuffer();});
+  Promise.all(jobs.concat([swfJob])).then(function(res){
+    var swfBuf=res[res.length-1];
+    if(!blobs["ruffle.js"])throw new Error("ruffle.js is missing from the repository's ruffle folder");
+    function map(u){
+      u=String(u);
+      if(u.indexOf(FAKE)===0){var n=u.slice(FAKE.length).split(/[?#]/)[0]; if(blobs[n])return blobs[n];}
+      return u;
+    }
+    var realFetch=window.fetch;
+    window.fetch=function(input,init){
+      var u=(typeof input==="string")?input:(input&&input.url)?input.url:String(input);
+      var m=map(u);
+      if(m!==u)return realFetch.call(this,m,init);
+      return realFetch.apply(this,arguments);
+    };
+    var d=Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype,"src");
+    Object.defineProperty(HTMLScriptElement.prototype,"src",{configurable:true,enumerable:d.enumerable,get:d.get,set:function(v){d.set.call(this,map(v));}});
+    var realSet=Element.prototype.setAttribute;
+    Element.prototype.setAttribute=function(k,v){
+      if(k==="src"&&this instanceof HTMLScriptElement)v=map(v);
+      return realSet.call(this,k,v);
+    };
+    var cfg=Object.assign({},CFG); cfg.publicPath=FAKE;
+    window.RufflePlayer=window.RufflePlayer||{};
+    window.RufflePlayer.config=cfg;
+    return new Promise(function(ok,bad){
+      var s=document.createElement("script");
+      s.src=FAKE+"ruffle.js";
+      s.onload=ok;
+      s.onerror=function(){bad(new Error("ruffle.js was downloaded but would not run"));};
+      document.head.appendChild(s);
+    }).then(function(){
+      var player=window.RufflePlayer.newest().createPlayer();
+      host.style.cssText=""; host.textContent="";
+      player.style.width="100%"; player.style.height="100%";
+      host.appendChild(player);
+      return player.load({data:new Uint8Array(swfBuf)});
+    });
+  }).catch(fail);
+}
+
+function buildLinkedHTML(o){
+  const cfg={autoplay:o.autoplay,unmuteOverlay:"visible",letterbox:"on",scaleMode:o.scale,forceScale:true,backgroundColor:o.bg,splashScreen:false};
+  return "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+  +"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n"
+  +"<title>"+esc(o.title)+"</title>\n"
+  +"<style>html,body{margin:0;height:100%;background:"+esc(o.bg)+"}#game{width:100%;height:100%}</style>\n"
+  +"</head>\n<body>\n<div id=\"game\"></div>\n"
+  +(o.b64?"<script id=\"swf\" type=\"text/plain\">"+o.b64+"<\/script>\n":"")
+  +"<script>\n("+linkedRuntime.toString()+")("+JSON.stringify(cfg)+","+JSON.stringify(o.files)+","+JSON.stringify(o.base)+","+JSON.stringify(o.swf||"")+");\n<\/script>\n</body>\n</html>\n";
+}
+
+/* GitHub API */
+const API="https://api.github.com";
+let TOKEN="";
+function ghFetch(path,opts){
+  opts=opts||{};
+  return fetch(API+path,Object.assign({},opts,{headers:Object.assign({
+    "Accept":"application/vnd.github+json","Authorization":"Bearer "+TOKEN,"X-GitHub-Api-Version":"2022-11-28"
+  },opts.headers||{})}));
+}
+async function putFile(owner,repo,branch,path,b64,message){
+  const enc=path.split("/").map(encodeURIComponent).join("/");
+  let sha;
+  const ex=await ghFetch("/repos/"+owner+"/"+repo+"/contents/"+enc+"?ref="+encodeURIComponent(branch));
+  if(ex.ok){sha=(await ex.json()).sha;}
+  const body={message:message,content:b64,branch:branch}; if(sha)body.sha=sha;
+  const r=await ghFetch("/repos/"+owner+"/"+repo+"/contents/"+enc,{method:"PUT",body:JSON.stringify(body)});
+  if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error("Upload of "+path+" failed ("+r.status+"): "+(j.message||"unknown error"));}
+}
+async function exists(owner,repo,branch,path){
+  const enc=path.split("/").map(encodeURIComponent).join("/");
+  const r=await ghFetch("/repos/"+owner+"/"+repo+"/contents/"+enc+"?ref="+encodeURIComponent(branch));
+  return r.ok;
+}
+
+async function installRuffle(owner,repo,branch){
+  const listing=await listRuffle();
+  const version=listing.version;
+  log("Ruffle version: "+version);
+  const files=listing.files.filter(f=>/\.(js|wasm)$/.test(f.name)||/\/LICENSE/i.test(f.name));
+  log("Installing "+files.length+" Ruffle files into ruffle/ ...");
+  let n=0;
+  for(const f of files){
+    n++;
+    const rel=f.name.replace(/^\//,"");
+    const buf=await getRuffleFile(version,f.name);
+    log("  ["+n+"/"+files.length+"] "+rel+" ("+(buf.byteLength/1048576).toFixed(2)+" MB)","dim");
+    await putFile(owner,repo,branch,"ruffle/"+rel,toB64(buf),"Add Ruffle "+version+": "+rel);
+  }
+  await putFile(owner,repo,branch,"ruffle/VERSION.txt",btoa(version+"\n"),"Record Ruffle version");
+  log("Ruffle installed.","ok");
+}
+
+async function runGithub(opts){
+  TOKEN=$("token").value.trim();
+  const repoName=$("repo").value.trim().replace(/[^A-Za-z0-9._-]/g,"-");
+  if(!TOKEN){throw new Error("Paste a GitHub token first.");}
+  if(!repoName){throw new Error("Enter a repository name.");}
+  try{ if($("remember").checked)localStorage.setItem("swfsq.token",TOKEN); else localStorage.removeItem("swfsq.token"); localStorage.setItem("swfsq.repo",repoName);}catch(e){}
+
+  log("Checking your GitHub account...");
+  const u=await ghFetch("/user");
+  if(!u.ok)throw new Error("GitHub rejected the token ("+u.status+"). Check the token and its repo scope.");
+  const owner=(await u.json()).login;
+  log("Signed in as "+owner,"ok");
+
+  let branch;
+  let rr=await ghFetch("/repos/"+owner+"/"+repoName);
+  if(rr.status===404){
+    log("Repository "+repoName+" not found. Creating it...","warn");
+    const c=await ghFetch("/user/repos",{method:"POST",body:JSON.stringify({name:repoName,description:"Flash games converted with SWF Squasher",auto_init:true,private:false})});
+    if(!c.ok){const j=await c.json().catch(()=>({}));throw new Error("Could not create the repository ("+c.status+"): "+(j.message||""));}
+    branch=(await c.json()).default_branch||"main";
+    log("Created "+owner+"/"+repoName,"ok");
+    await new Promise(r=>setTimeout(r,2000));
+  }else if(rr.ok){
+    const rj=await rr.json();
+    branch=rj.default_branch||"main";
+    log("Using existing repository "+owner+"/"+repoName+" (branch "+branch+")","ok");
+    if(rj.private)log("This repository is private, so links to its files will not work in your HTML. Make it public in the repository settings.","warn");
+  }else{
+    throw new Error("Could not read the repository ("+rr.status+").");
+  }
+
+  const hasRuffle=await exists(owner,repoName,branch,"ruffle/ruffle.js");
+  if(!hasRuffle||$("forceRuffle").checked){
+    if(hasRuffle)log("Re-installing Ruffle as requested.","warn"); else log("No Ruffle found in the repository. Adding it.","warn");
+    await installRuffle(owner,repoName,branch);
+  }else{
+    log("Ruffle already in the repository. Skipping.","ok");
+  }
+
+  const dir="games/"+opts.slug;
+  const swfName=opts.slug+".swf";
+  const embed=$("embedSwf").checked;
+  if(!embed){
+    log("Uploading "+dir+"/"+swfName+" ...");
+    await putFile(owner,repoName,branch,dir+"/"+swfName,toB64(opts.buf),"Add "+opts.title+" (swf)");
+  }else{
+    log("The SWF will be embedded in the HTML, so only Ruffle is needed in the repository.");
+  }
+
+  log("Reading the repository's file list...");
+  const hd=await ghFetch("/repos/"+owner+"/"+repoName+"/commits/"+encodeURIComponent(branch));
+  if(!hd.ok)throw new Error("Could not read the latest commit ("+hd.status+").");
+  const cj=await hd.json();
+  const sha=cj.sha;
+  const tr=await ghFetch("/repos/"+owner+"/"+repoName+"/git/trees/"+cj.commit.tree.sha+"?recursive=1");
+  if(!tr.ok)throw new Error("Could not list the repository files ("+tr.status+").");
+  const tree=(await tr.json()).tree||[];
+  const rf=tree.filter(t=>t.type==="blob"&&t.path.indexOf("ruffle/")===0&&/\.(js|wasm)$/.test(t.path));
+  const files=rf.map(t=>t.path.slice(7));
+  if(files.indexOf("ruffle.js")<0)throw new Error("ruffle/ruffle.js is not in the repository. Tick \"Re-install Ruffle\" and try again.");
+  const bytes=rf.reduce((a,t)=>a+(t.size||0),0);
+  log("Linked to commit "+sha.slice(0,7)+": "+files.length+" Ruffle files ("+(bytes/1048576).toFixed(1)+" MB), read straight from the repository.","ok");
+  const base="https://raw.githubusercontent.com/"+owner+"/"+repoName+"/"+sha+"/";
+
+  try{
+    const t=await fetch(base+"ruffle/ruffle.js",{method:"HEAD"});
+    if(t.ok)log("Checked: the repository files can be read from a web page.","ok");
+    else log("The repository answers "+t.status+" for ruffle/ruffle.js. If the repository is private, make it public.","warn");
+  }catch(e){
+    log("Could not check the repository link from this page ("+(e&&e.message?e.message:e)+"). Open "+base+"ruffle/ruffle.js in a browser tab to see if it loads.","warn");
+  }
+
+  const html=buildLinkedHTML({title:opts.title,bg:opts.bg,scale:opts.scale,autoplay:opts.autoplay,files:files,base:base+"ruffle/",swf:embed?"":base+dir+"/"+swfName,b64:embed?toB64(opts.buf):undefined});
+  return {html:html,repoUrl:"https://github.com/"+owner+"/"+repoName,fileUrl:embed?null:"https://github.com/"+owner+"/"+repoName+"/tree/"+branch+"/"+dir};
+}
+
+function addLink(text,href){
+  const a=document.createElement("a"); a.className="btn"; a.href=href; a.target="_blank"; a.rel="noopener"; a.textContent=text;
+  $("result").appendChild(a);
+}
+
+$("go").addEventListener("click",async()=>{
+  if(!swfFile)return;
+  const btn=$("go"); btn.disabled=true; $("result").textContent="";
+  const title=$("title").value.trim()||"Flash Game";
+  const opts={title:title,slug:slug(title),bg:$("bg").value,scale:$("scale").value,autoplay:$("autoplay").value};
+  try{
+    opts.buf=await swfFile.arrayBuffer();
+    if(mode()==="html"){
+      let html,note;
+      if($("inlineRuffle").checked){
+        const bundle=await getRuffleBundle();
+        log("Building one HTML file with Ruffle inside...");
+        const cdn=$("cdnFallback").checked?"https://unpkg.com/@ruffle-rs/ruffle":"";
+        html=buildInlineHTML({title:title,bg:opts.bg,scale:opts.scale,autoplay:opts.autoplay,bundle:bundle,b64:toB64(opts.buf),cdn:cdn});
+        note=cdn?"Ruffle is inside the file, with a CDN safety net.":"Ruffle is inside the file. No outside links, works fully offline.";
+      }else{
+        log("Building a single HTML file (Ruffle from a CDN)...");
+        html=buildHTML({title:title,bg:opts.bg,scale:opts.scale,autoplay:opts.autoplay,ruffleSrc:"https://unpkg.com/@ruffle-rs/ruffle",b64:toB64(opts.buf)});
+        note="Ruffle loads from unpkg.com, so the file needs internet.";
+      }
+      const blob=new Blob([html],{type:"text/html"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a"); a.href=url; a.download=opts.slug+".html"; document.body.appendChild(a); a.click(); a.remove();
+      log("Done: "+opts.slug+".html ("+(blob.size/1048576).toFixed(1)+" MB). "+note,"ok");
+      const p=document.createElement("a"); p.className="btn"; p.href=url; p.target="_blank"; p.rel="noopener"; p.textContent="Preview in a new tab"; $("result").appendChild(p);
+      const d=document.createElement("a"); d.className="btn"; d.href=url; d.download=opts.slug+".html"; d.textContent="Download "+opts.slug+".html again"; $("result").appendChild(d);
+    }else{
+      const res=await runGithub(opts);
+      const blob=new Blob([res.html],{type:"text/html"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a"); a.href=url; a.download=opts.slug+".html"; document.body.appendChild(a); a.click(); a.remove();
+      log("Done: "+opts.slug+".html ("+(blob.size/1024).toFixed(0)+" KB) is linked to your repository. Keep the file anywhere you like.","ok");
+      const d=document.createElement("a"); d.className="btn"; d.href=url; d.download=opts.slug+".html"; d.textContent="Download "+opts.slug+".html again"; $("result").appendChild(d);
+      if(res.fileUrl)addLink("Open game folder on GitHub",res.fileUrl);
+      addLink("Open repository",res.repoUrl);
+    }
+  }catch(e){
+    log(e.message||String(e),"err");
+  }finally{
+    btn.disabled=false;
+  }
+});
+})();
+</script>
+</body>
+</html>
